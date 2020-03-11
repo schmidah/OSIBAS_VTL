@@ -1,7 +1,7 @@
 ;234567890123456789012345678901234567890123456789012345
-	.lf  vtl02a2.lst	
-	.cr  6502	
-	.tf  vtl02a2.obj,ap1
+	;.lf  vtl02a2.lst	
+	;.cr  6502	
+	;.tf  vtl02a2.obj,ap1
 ;------------------------------------------------------
 ; VTL-2 for the 6502 (VTL02)
 ; Original Altair 680b version by
@@ -117,152 +117,167 @@
 ;   interpreter, so their internal use by VTL02 is
 ;   "safe".  The same cannot be said for {; < =}, so
 ;   be careful!		
-at	 =   $80	{@}* interpreter text pointer
+at	 =   $80	;{@}* interpreter text pointer
 ; VTL02 standard user variable space
 ;	     $82	{A B C .. X Y Z [ \ ] ^}
 ; VTL02 system variable space
-under	 =   $be	{_}* interpreter temp storage
+under	 =   $be	;{_}* interpreter temp storage
 ;	 =   $c0	{ }  space is a valid variable
-bang	 =   $c2	{!}  return line number
-quote	 =   $c4	{"}  user ml subroutine vector
-pound	 =   $c6	{#}  current line number
-dolr	 =   $c8	{$}* temp storage / char i/o
-remn	 =   $ca	{%}  remainder of last division
-ampr	 =   $cc	{&}  pointer to start of array
-tick	 =   $ce	{'}  pseudo-random number
-lparen	 =   $d0	{(}* old line # / begin sub-exp
-rparen	 =   $d2	{)}* temp storage / end sub-exp
-star	 =   $d4	{*}  pointer to end of free mem
+bang	 =   $c2	;{!}  return line number
+quote	 =   $c4	;{"}  user ml subroutine vector
+pound	 =   $c6	;{#}  current line number
+dolr	 =   $c8	;{$}* temp storage / char i/o
+remn	 =   $ca	;{%}  remainder of last division
+ampr	 =   $cc	;{&}  pointer to start of array
+tick	 =   $ce	;{'}  pseudo-random number
+lparen	 =   $d0	;{(}* old line # / begin sub-exp
+rparen	 =   $d2	;{)}* temp storage / end sub-exp
+star	 =   $d4	;{*}  pointer to end of free mem
 ;	     $d6	{+ , - . /}  valid variables
 ; Interpreter argument stack space
-arg	 =   $e0	{0 1 2 3 4 5 6 7 8 9 :}*
+arg	 =   $e0	;{0 1 2 3 4 5 6 7 8 9 :}*
 ; Rarely used variables and argument stack overflow
 ;	     $f6	{; < =}* valid variables
-gthan	 =   $fc	{>}* call user ml subroutine
-ques	 =   $fe	{?}* temp / terminal i/o
+gthan	 =   $fc	;{>}* call user ml subroutine
+ques	 =   $fe	;{?}* temp / terminal i/o
 ;			
-nulstk	 =   $01ff	system stack resides in page 1
-linbuf	 =   $0200	input line buffer
-prgm	 =   2048	VTL program grows from here ...
-himem	 =   32768	up to the top of user RAM
+nulstk	 =   $01ff	;system stack resides in page 1
+linbuf	 =   $0200	;input line buffer
+prgm	 =   2048	;VTL program grows from here ...
+;*himem	 =   32768	;up to the top of user RAM
+himem	 =   10240	;up to the top of user RAM
 ;------------------------------------------------------
 ; Equates specific to the Apple 2.  These should work
 ;  on any 48K+ Apple 2 (original, +, c, e, gs)
-vtl02	 =   $8000	interpreter cold entry point
+;*vtl02	 =   $8000	interpreter cold entry point
 ;			  (warm entry point is startok)
-kbd	 =   $c000	128 + keypress if waiting
-keyin	 =   $fd0c	apple monitor keyin routine
-cout	 =   $fded	apple monitor charout routine
+;*kbd	 =   $c000	;128 + keypress if waiting
+;*keyin	 =   $fd0c	;apple monitor keyin routine
+;*cout	 =   $fded	apple monitor charout routine
+.define cout MONCOUT
+
+.import MONCOUT
+.import MONRDKEY
+
+.export vtl_reset
+.export vtl_start
 ;======================================================
-	.or  vtl02	
+	;*.or  vtl02	
 ;------------------------------------------------------
 ; Initialize program area pointers and start VTL02
 ;			
-	lda  #prgm	
-	sta  ampr	{&} -> empty program
-	lda  /prgm	
+.segment "CODEVTL"
+vtl_reset:
+	lda  #<prgm	
+	sta  ampr	;{&} -> empty program
+	lda  #>prgm	
 	sta  ampr+1	
-	lda  #himem	
-	sta  star	{*} -> top of user RAM
-	lda  /himem	
+	lda  #<himem	
+	sta  star	;{*} -> top of user RAM
+	lda  #>himem	
 	sta  star+1	
-startok	sec  		request "OK" message
+startok:	sec  		;request "OK" message
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; Start/restart VTL02 command line with program intact
-;			
-start	ldx  #nulstk	
-	txs  		reset the system stack pointer
-	bcc  user	skip "OK" if carry clear
+;	
+vtl_start:	ldx  #<nulstk	
+	txs  		;reset the system stack pointer
+	bcc  user	;skip "OK" if carry clear
 	jsr  outcr	
 	lda  #'O'	
 	jsr  outch	
 	lda  #'K'	
 	jsr  outch	
-user	jsr  newln	input a line from the user
-	ldx  #pound	cvbin destination = {#}
-	jsr  cvbin	does line start with a number?
-	bne  stmnt	  yes: handle program line
+user:	jsr  newln	;input a line from the user
+	ldx  #pound	;cvbin destination = {#}
+	jsr  cvbin	;does line start with a number?
+	bne  stmnt	  ;yes: handle program line
 ;			  no: execute direct statement
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; The main program execution loop
 ;			
-eloop	php  		(cc: program, cs: direct)
-	jsr  exec	execute one VTL02 statement
+	jsr  outcr	;!!!TEST!!!
+eloop:	php  		;(cc: program, cs: direct)
+	jsr  exec	;execute one VTL02 statement
 	plp  		
-	lda  pound	(eq) if {#} is 0
+	lda  pound	;(eq) if {#} is 0
 	ora  pound+1	
-	bcc  eloop2	if direct mode and {#} = 0
-	beq  startok	  then restart cmd prompt
-	clc  		if direct mode and {#} <> 0
-	bne  xloop	  then start execution @ {#}
-eloop2	sec  		if program mode and {#} = 0
-	beq  xloop	  then execute next line
-	lda  pound+1	  (false branch condition)
+	bcc  eloop2	;if direct mode and {#} = 0
+	beq  startok	  ;then restart cmd prompt
+	clc  		;if direct mode and {#} <> 0
+	bne  xloop	  ;then start execution @ {#}
+eloop2:	sec  		;if program mode and {#} = 0
+	beq  xloop	  ;then execute next line
+	lda  pound+1	  ;(false branch condition)
 	cmp  lparen+1	
-	bne  branch	else has {#} changed?
+	bne  branch	;else has {#} changed?
 	lda  pound	
 	cmp  lparen	
-	beq  xloop	  no: execute next line (cs)
-branch	ldy  lparen+1	
-	ldx  lparen	  yes: execute a VTL02 branch
-	inx  		    (cs: forward, cc: backward)
-	bne  branch2	    {!} = {(} + 1 (return ptr)
+	beq  xloop	  ;no: execute next line (cs)
+branch:	ldy  lparen+1	
+	ldx  lparen	  ;yes: execute a VTL02 branch
+	inx  		    ;(cs: forward, cc: backward)
+	bne  branch2	    ;{!} = {(} + 1 (return ptr)
 	iny  		
-branch2	stx  bang	
+branch2:	stx  bang	
 	sty  bang+1	
-xloop	jsr  findln	find first/next line >= {#}
-	iny  		point to left-side of statement
-	bne  eloop	execute statement at new {#}
+xloop:	jsr  findln	;find first/next line >= {#}
+	iny  		;point to left-side of statement
+	bne  eloop	;execute statement at new {#}
 ;------------------------------------------------------
 ; Delete/insert program line or list program
 ;			
-stmnt	clc  		
-	lda  pound	{#} = 0?
-	ora  pound+1	  no: delete/insert line
-	bne  skp2	  yes: list program to terminal
+stmnt:	clc  		
+	lda  pound	;{#} = 0?
+	ora  pound+1	  ;no: delete/insert line
+	bne  skp2	  ;yes: list program to terminal
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; List program to terminal and restart "OK" prompt
 ; entry:  Carry must be clear
 ; uses:	  findln, outch, prnum, prstr, {@ ( )}
-;			
-list	jsr  findln	find program line >= {#}
-	ldx  #lparen	line number for prnum
-	jsr  prnum	print the line number
-	lda  #' '	print a space instead of the
-	jsr  outch	  line length byte
-	lda  #0		zero for delimiter
-	jsr  prstr	print the rest of the line
-	sec  		continue at the next line
-	bcs  list	(always taken)
+;		
+	php	; Save the status word
+	jsr outcr	;!!!TEST!!!
+	plp	; Restore the state word
+list:	
+	jsr  findln	;find program line >= {#}
+	ldx  #lparen	;line number for prnum
+	jsr  prnum	;print the line number
+	lda  #' '	;print a space instead of the
+	jsr  outch	  ;line length byte
+	lda  #0		;zero for delimiter
+	jsr  prstr	;print the rest of the line
+	sec  		;continue at the next line
+	bcs  list	;(always taken)
 ;------------------------------------------------------
 ; Delete/insert program line and restart command prompt
 ; entry:  Carry must be clear
 ; uses:   find, start, {@ _ # & * (}, linbuf
 ;			
-skp2	tya  		save linbuf offset pointer
+skp2:	tya  		;save linbuf offset pointer
 	pha  		
-	jsr  find	locate first line >= {#}
+	jsr  find	;locate first line >= {#}
 	bcs  insrt	
 	lda  lparen	
-	cmp  pound	if line doesn't already exist
-	bne  insrt	  then skip deletion process
+	cmp  pound	;if line doesn't already exist
+	bne  insrt	  ;then skip deletion process
 	lda  lparen+1	
 	eor  pound+1	
 	bne  insrt	
-	tax  		x = 0
+	tax  		;x = 0
 	lda  (at),y	
-	tay  		y = length of line to delete
-	eor  #-1	
-	adc  ampr	{&} = {&} - y
+	tay  		;y = length of line to delete
+	eor  #<-1	
+	adc  ampr	;{&} = {&} - y
 	sta  ampr	
 	bcs  delt	
 	dec  ampr+1	
-delt	lda  at		
-	sta  under	{_} = {@}
+delt:	lda  at		
+	sta  under	;{_} = {@}
 	lda  at+1	
 	sta  under+1	
-delt2	lda  under	
-	cmp  ampr	delete the line
+delt2:	lda  under	
+	cmp  ampr	;delete the line
 	lda  under+1	
 	sbc  ampr+1	
 	bcs  insrt	
@@ -271,60 +286,60 @@ delt2	lda  under
 	inc  under	
 	bne  delt2	
 	inc  under+1	
-	bcc  delt2	(always taken)
-insrt	pla  		
-	tax  		x = linbuf offset pointer
+	bcc  delt2	;(always taken)
+insrt:	pla  		
+	tax  		;x = linbuf offset pointer
 	lda  pound	
-	pha  		push the new line number on
-	lda  pound+1	  the system stack
+	pha  		;push the new line number on
+	lda  pound+1	  ;the system stack
 	pha  		
 	ldy  #2		
-cntln	inx  		
-	iny  		determine new line length in y
-	lda  linbuf-1,x	  and push statement string on
-	pha  		  the system stack
+cntln:	inx  		
+	iny  		;determine new line length in y
+	lda  linbuf-1,x	  ;and push statement string on
+	pha  		  ;the system stack
 	bne  cntln	
-	cpy  #4		if empty line then skip the
-	bcc  jstart	  insertion process
-	tax  		x = 0
+	cpy  #4		;if empty line then skip the
+	bcc  jstart	  ;insertion process
+	tax  		;x = 0
 	tya  		
 	clc  		
-	adc  ampr	calculate new program end
-	sta  under	  {_} = {&} + y
+	adc  ampr	;calculate new program end
+	sta  under	  ;{_} = {&} + y
 	txa  		
 	adc  ampr+1	
 	sta  under+1	
 	lda  under	
 	cmp  star	
-	lda  under+1	if {_} >= {*} then the program
-	sbc  star+1	  won't fit in available RAM,
-	bcs  jstart	  so abort to the "OK" prompt
-slide	lda  ampr	
+	lda  under+1	;if {_} >= {*} then the program
+	sbc  star+1	  ;won't fit in available RAM,
+	bcs  jstart	  ;so abort to the "OK" prompt
+slide:	lda  ampr	
 	bne  slide2	
 	dec  ampr+1	
-slide2  dec  ampr	
+slide2:  dec  ampr	
 	lda  ampr	
 	cmp  at		
 	lda  ampr+1	
 	sbc  at+1	
-	bcc  move	slide open a gap inside the
-	lda  (ampr,x)	  program just big enough to
-	sta  (ampr),y	  hold the new line
-	bcs  slide	(always taken)
-move	tya  		
-	tax  		x = new line length
-move2	pla  		pull the statement string and
-	dey  		  the new line number and store
-	sta  (at),y	  them in the program gap
+	bcc  move	;slide open a gap inside the
+	lda  (ampr,x)	  ;program just big enough to
+	sta  (ampr),y	  ;hold the new line
+	bcs  slide	;(always taken)
+move:	tya  		
+	tax  		;x = new line length
+move2:	pla  		;pull the statement string and
+	dey  		  ;the new line number and store
+	sta  (at),y	  ;them in the program gap
 	bne  move2	
 	ldy  #2		
 	txa  		
-	sta  (at),y	store length after line number
+	sta  (at),y	;store length after line number
 	lda  under	
-	sta  ampr	{&} = {_}
+	sta  ampr	;{&} = {_}
 	lda  under+1	
 	sta  ampr+1	
-jstart	jmp  start	dump stack, restart cmd prompt
+jstart:	jmp  vtl_start	;dump stack, restart cmd prompt
 ;------------------------------------------------------
 ; Point @[y] to the first/next program line >= {#}
 ; entry:  (cc): start search at beginning of program
@@ -335,10 +350,10 @@ jstart	jmp  start	dump stack, restart cmd prompt
 ;	  else {@} -> found line, {#} = {(} = actual
 ;	    line number, y = 2, (cc)
 ;			
-findln	jsr  find	find first/next line >= {#}
-	bcs  jstart	if end then restart "OK" prompt
+findln:	jsr  find	;find first/next line >= {#}
+	bcs  jstart	;if end then restart "OK" prompt
 	lda  lparen	
-	sta  pound	{#} = {(}
+	sta  pound	;{#} = {(}
 	lda  lparen+1	
 	sta  pound+1	
 	rts  		
@@ -346,8 +361,8 @@ findln	jsr  find	find first/next line >= {#}
 ; {?="...} handler; called from 'exec'
 ; list line handler; called from 'list'
 ;			
-prstr	iny  		skip over the " or length byte
-	tax  		x = delimiter, fall through
+prstr:	iny  		;skip over the " or length byte
+	tax  		;x = delimiter, fall through
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; Print a string at @[y]
 ; x holds the delimiter char, which is skipped over,
@@ -362,44 +377,61 @@ prstr	iny  		skip over the " or length byte
 ; exit:   (normal) @[y] -> null or byte after delimiter
 ; 	  (ctrl-c) dump the stack & restart "OK" prompt
 ;			
-prmsg	txa  		
-	cmp  (at),y	found delimiter or null?
-	beq  prmsg2	  yes: finish up
+prmsg:	txa  		
+	cmp  (at),y	;found delimiter or null?
+	beq  prmsg2	  ;yes: finish up
 	lda  (at),y	
 	beq  prmsg2	
-	jsr  outch	  no: print char to user
-	iny  		    terminal and loop
-	bpl  prmsg	    (with safety escape)
-prmsg2	tax  		save closing delimiter
-	bit  kbd	has the user pressed a key?
-	bpl  prout  	  no: resume without pausing
-	jsr  inch	  yes: process first key press
-	jsr  inch	    and pause for another
-prout	txa  		retrieve closing delimiter
-	beq  outcr	always cr after null delimiter
-	iny  		skip over the delimiter
-	lda  (at),y	if trailing char is ';' then
-	cmp  #';'	  suppress the carriage return
+	jsr  outch	  ;no: print char to user
+	iny  		    ;terminal and loop
+	bpl  prmsg	    ;(with safety escape)
+prmsg2:	tax  		;save closing delimiter
+	;* EDIT FOR IOHANDLER
+	;bit  kbd	;has the user pressed a key?
+	;bpl  prout  	  ;no: resume without pausing
+	jsr MONRDKEY
+	bcc prout
+	;* EDIT FOR IOHANDLER
+	jsr  inch2	  ;yes: process first key press
+	jsr  inch	    ;and pause for another
+prout:	txa  		;retrieve closing delimiter
+	beq  outcr	;always cr after null delimiter
+	iny  		;skip over the delimiter
+	lda  (at),y	;if trailing char is ';' then
+	cmp  #';'	  ;suppress the carriage return
 	beq  outrts	
-outcr	lda  #$0d	cr to terminal
-	bne  outch	(always taken)
+outcr:	
+	;* EDIT FOR TERMINAL
+	lda #$0a;lf to terminal
+	jsr  outch
+	;* EDIT FOR TERMINAL
+	lda  #$0d	;cr to terminal
+	bne  outch	;(always taken)
 ;------------------------------------------------------
 ; Read char from user terminal into a with echo
 ;			
-inch	sty  dolr	save y reg
-	jsr  keyin	get a char from keyboard
-	ldy  dolr	restore y reg
-	and  #$7f	ensure char is positive ascii
-	cmp  #$03	ctrl-c?
-	beq  jstart	  yes: abort to "OK" prompt
+inch:
+	;* EDIT FOR IOHANDLER
+	;sty  dolr	;save y reg
+	;jsr  keyin	;get a char from keyboard
+	;ldy  dolr	;restore y reg
+	jsr MONRDKEY
+	bcc inch
+	;* EDIT FOR IOHANDLER
+inch2:
+	and  #$7f	;ensure char is positive ascii
+	cmp  #$03	;ctrl-c?
+	beq  jstart	  ;yes: abort to "OK" prompt
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; Print ascii char in a to stdout
 ;			
-outch	pha  		save original char
-	ora  #$80	apples prefer negative ascii
-	jsr  cout	emit char to stdout
-	pla  		restore original char
-outrts	rts  		
+outch:	pha  		;save original char
+	;* EDIT FOR IOHANDLER
+	;ora  #$80	;apples prefer negative ascii
+	;* EDIT FOR IOHANDLER
+	jsr  cout	;emit char to stdout
+	pla  		;restore original char
+outrts:	rts  		
 ;------------------------------------------------------
 ; Execute a hopefully valid VTL02 statement at @[y]
 ; entry:  @[y] -> left-side of statement
@@ -413,79 +445,79 @@ outrts	rts
 ;	    as {?="...}, regardless of the variable
 ;	    named on the left-side
 ;			
-exec	lda  (at),y	fetch left-side variable name
-	beq  execrts	do nothing if null statement
+exec:	lda  (at),y	;fetch left-side variable name
+	beq  execrts	;do nothing if null statement
 	iny  		
-	ldx  #arg	initialize argument pointer
-	jsr  convp	arg[{0}] = address of left-side
-	bne  exec1	  variable 
+	ldx  #arg	;initialize argument pointer
+	jsr  convp	;arg[{0}] = address of left-side
+	bne  exec1	  ;variable 
 	lda  arg	
-	cmp  #rparen	full line comment?
-	beq  execrts	  yes: do nothing with the rest
-exec1	iny  		skip over assignment operator
-	lda  (at),y	is right-side a literal string?
-	cmp  #'"'	  yes: print the string with
-	beq  prstr	    trailing ';' check & return
-	ldx  #arg+2	point eval to arg[{1}]
-	jsr  eval	evaluate right-side in arg[{1}]
+	cmp  #rparen	;full line comment?
+	beq  execrts	  ;yes: do nothing with the rest
+exec1:	iny  		;skip over assignment operator
+	lda  (at),y	;is right-side a literal string?
+	cmp  #'"'	  ;yes: print the string with
+	beq  prstr	    ;trailing ';' check & return
+	ldx  #arg+2	;point eval to arg[{1}]
+	jsr  eval	;evaluate right-side in arg[{1}]
 	lda  arg+2	
-	ldx  arg+1	was left-side an array element?
-	bne  exec3	  yes: skip to default actions
+	ldx  arg+1	;was left-side an array element?
+	bne  exec3	  ;yes: skip to default actions
 	ldx  arg	
-	cpx  #dolr	if {$=...} statement then print
-	beq  outch	  arg[{1}] as ascii character
+	cpx  #dolr	;if {$=...} statement then print
+	beq  outch	  ;arg[{1}] as ascii character
 	cpx  #gthan	
-	bne  exec2	if {>=...} statement then call
-	tax  		  user machine language routine
-	lda  arg+3	  with arg[{1}] in a, x regs
-	jmp  (quote)	  (MSB, LSB)
-exec2	cpx  #ques	if {?=...} statement then print
-	beq  prnum0	  arg[{1}] as unsigned decimal
-exec3	ldy  #0		
+	bne  exec2	;if {>=...} statement then call
+	tax  		  ;user machine language routine
+	lda  arg+3	  ;with arg[{1}] in a, x regs
+	jmp  (quote)	  ;(MSB, LSB)
+exec2:	cpx  #ques	;if {?=...} statement then print
+	beq  prnum0	  ;arg[{1}] as unsigned decimal
+exec3:	ldy  #0		
 	sta  (arg),y	
-	adc  tick+1	store arg[{1}] in the left-
-	rol  		  side variable
+	adc  tick+1	;store arg[{1}] in the left-
+	rol  		  ;side variable
 	tax  		
 	iny  		
 	lda  arg+3	
 	sta  (arg),y	
-	adc  tick	pseudo-randomize {'}
+	adc  tick	;pseudo-randomize {'}
 	rol  		
 	sta  tick+1	
 	stx  tick	
-execrts	rts  		
+execrts:	rts  		
 ;------------------------------------------------------
 ; {?=...} handler; called by 'exec'
 ;			
-prnum0	ldx  #arg+2	x -> arg[{1}], fall through
+prnum0:	ldx  #arg+2	;x -> arg[{1}], fall through
 ;------------------------------------------------------
 ; Print an unsigned decimal number (0..65535) in var[x]
 ; entry:  var[x] = number to print
 ; uses:   div, outch, var[x+2], preserves original {%}
 ; exit:   var[x] = 0, var[x+2] = 10
 ;			
-prnum	lda  remn	
-	pha  		save {%}
+prnum:	lda  remn	
+	pha  		;save {%}
 	lda  remn+1	
 	pha  		
-	lda  #10	divisor = 10
+	lda  #10	;divisor = 10
 	sta  2,x	
 	lda  #0		
-	pha  		null delimiter for print
-	sta  3,x	repeat {
-prnum2	jsr  div	  divide var[x] by 10
+	pha  		;null delimiter for print
+	sta  3,x	;repeat {
+prnum2:	jsr  div	  ;divide var[x] by 10
 	lda  remn	
-	ora  #'0'	  convert remainder to ascii
-	pha  		  stack digits in ascending
-	lda  0,x	    order ('0' for zero)
+	ora  #'0'	  ;convert remainder to ascii
+	pha  		  ;stack digits in ascending
+	lda  0,x	    ;order ('0' for zero)
 	ora  1,x	
-	bne  prnum2	} until var[x] is 0
+	bne  prnum2	;} until var[x] is 0
 	pla  		
-prnum3	jsr  outch	print digits in descending
-	pla  		  order until delimiter is
-	bne  prnum3	  encountered
+prnum3:	jsr  outch	;print digits in descending
+	pla  		  ;order until delimiter is
+	bne  prnum3	  ;encountered
 	pla  		
-	sta  remn+1	restore {%}
+	sta  remn+1	;restore {%}
 	pla  		
 	sta  remn	
 	rts  		
@@ -504,171 +536,171 @@ prnum3	jsr  outch	print digits in descending
 ; uses:   getval, oper, argument stack area
 ; exit:	  arg[x] = result, @[y] -> next text
 ;			
-eval	lda  #0		
-	sta  0,x	start evaluation by simulating
-	sta  1,x	  {0+expression}
+eval:	lda  #0		
+	sta  0,x	;start evaluation by simulating
+	sta  1,x	  ;{0+expression}
 	lda  #'+'	
-notdn	pha  		stack alleged operator
-	inx  		advance the argument stack
-	inx  		  pointer
-	jsr  getval	arg[x+2] = value of next term
+notdn:	pha  		;stack alleged operator
+	inx  		;advance the argument stack
+	inx  		  ;pointer
+	jsr  getval	;arg[x+2] = value of next term
 	dex  		
 	dex  		
-	pla  		retrieve and apply the operator
-	jsr  oper	  to arg[x], arg[x+2]
-	lda  (at),y	end of expression?
-	beq  evalrts	  (null or right parenthesis)
+	pla  		;retrieve and apply the operator
+	jsr  oper	  ;to arg[x], arg[x+2]
+	lda  (at),y	;end of expression?
+	beq  evalrts	  ;(null or right parenthesis)
 	iny  		
-	cmp  #')'	  no: skip over the operator
-	bne  notdn	    and continue the evaluation
-evalrts	rts  		  yes: return with final result
+	cmp  #')'	  ;no: skip over the operator
+	bne  notdn	    ;and continue the evaluation
+evalrts:	rts  		  ;yes: return with final result
 ;------------------------------------------------------
 ; Put the numeric value of the term at @[y] into var[x]
 ; Some examples of valid terms:  123, $, H, (15-:J)/?)
 ;			
-getval	jsr  cvbin	decimal number at @[y]?
-	bne  getrts	  yes: return with it in var[x]
+getval:	jsr  cvbin	;decimal number at @[y]?
+	bne  getrts	  ;yes: return with it in var[x]
 	lda  (at),y	
 	iny  		
-	cmp  #'?'	user line input?
+	cmp  #'?'	;user line input?
 	bne  getval2	
-	tya  		  yes:
+	tya  		  ;yes:
 	pha  		
-	lda  at		    save @[y]
-	pha  		      (current expression ptr)
+	lda  at		    ;save @[y]
+	pha  		      ;(current expression ptr)
 	lda  at+1	
 	pha  		
-	jsr  inln	    input expression from user
-	jsr  eval	    evaluate, var[x] = result
+	jsr  inln	    ;input expression from user
+	jsr  eval	    ;evaluate, var[x] = result
 	pla  		
 	sta  at+1	
 	pla  		
-	sta  at		    restore @[y]
+	sta  at		    ;restore @[y]
 	pla  		
 	tay  		
-	rts  		    skip over "?" and return
-getval2	cmp  #'$'	user char input?
+	rts  		    ;skip over "?" and return
+getval2:	cmp  #'$'	;user char input?
 	bne  getval3	
-	jsr  inch	  yes: input one char
-	sta  0,x	    var[x] = char
-	rts  		    skip over "$" and return
-getval3	cmp  #'('	sub-expression?
-	beq  eval	  yes: evaluate it recursively
-	jsr  convp	  no: first set var[x] to the
-	lda  (0,x)	    named variable's address,
-	pha  		    then replace that address
-	inc  0,x	    with the variable's actual
-	bne  getval4	    value before returning
+	jsr  inch	  ;yes: input one char
+	sta  0,x	    ;var[x] = char
+	rts  		    ;skip over "$" and return
+getval3:	cmp  #'('	;sub-expression?
+	beq  eval	  ;yes: evaluate it recursively
+	jsr  convp	  ;no: first set var[x] to the
+	lda  (0,x)	    ;named variable's address,
+	pha  		    ;then replace that address
+	inc  0,x	    ;with the variable's actual
+	bne  getval4	    ;value before returning
 	inc  1,x	
-getval4	lda  (0,x)	
+getval4:	lda  (0,x)	
 	sta  1,x	
 	pla  		
 	sta  0,x	
-getrts	rts  		
+getrts:	rts  		
 ;------------------------------------------------------
 ; Apply the binary operator in a to var[x] and var[x+2]
 ; Valid VTL02 operators are +, -, *, /, <, and =
 ; Any other operator in a defaults to >=
 ;			
-oper	cmp  #'+'	addition operator?
-	bne  oper2	  no: next case
+oper:	cmp  #'+'	;addition operator?
+	bne  oper2	  ;no: next case
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
-add	clc  		
-	lda  0,x	var[x] += var[x+2]
+add:	clc  		
+	lda  0,x	;var[x] += var[x+2]
 	adc  2,x	
 	sta  0,x	
 	lda  1,x	
 	adc  3,x	
 	sta  1,x	
 	rts  		
-oper2	cmp  #'-'	subtraction operator?
-	bne  oper3	  no: next case
+oper2:	cmp  #'-'	;subtraction operator?
+	bne  oper3	  ;no: next case
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
-sub	sec  		
-	lda  0,x	var[x] -= var[x+2]
+sub:	sec  		
+	lda  0,x	;var[x] -= var[x+2]
 	sbc  2,x	
 	sta  0,x	
 	lda  1,x	
 	sbc  3,x	
 	sta  1,x	
 	rts  		
-oper3	cmp  #'*'	multiplication operator?
-	bne  oper4	  no: next case
+oper3:	cmp  #'*'	;multiplication operator?
+	bne  oper4	  ;no: next case
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; 16-bit unsigned multiply routine
 ;   overflow is ignored/discarded
 ;   var[x] *= var[x+2], var[x+2] = 0, {_} is modified
 ;			
-mul	lda  0,x	
+mul:	lda  0,x	
 	sta  under	
-	lda  1,x	{_} = var[x]
+	lda  1,x	;{_} = var[x]
 	sta  under+1	
 	lda  #0		
-	sta  0,x	var[x] = 0
+	sta  0,x	;var[x] = 0
 	sta  1,x	
-mul2	lsr  under+1	
-	ror  under	{_} /= 2
+mul2:	lsr  under+1	
+	ror  under	;{_} /= 2
 	bcc  mul3	
-	jsr  add	form the product in var[x]
-mul3	asl  2,x	
-	rol  3,x	left-shift var[x+2]
+	jsr  add	;form the product in var[x]
+mul3:	asl  2,x	
+	rol  3,x	;left-shift var[x+2]
 	lda  2,x	
-	ora  3,x	loop until var[x+2] = 0
+	ora  3,x	;loop until var[x+2] = 0
 	bne  mul2	
 	rts  		
-oper4	cmp  #'/'	division operator?
-	bne  oper5	  no: next case
+oper4:	cmp  #'/'	;division operator?
+	bne  oper5	  ;no: next case
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; 16-bit unsigned division routine
 ;   var[x] /= var[x+2], {%} = remainder, {_} modified
 ;   var[x] /= 0 produces {%} = var[x], var[x] = 65535
 ;			
-div	lda  #0		
-	sta  remn	{%} = 0
+div:	lda  #0		
+	sta  remn	;{%} = 0
 	sta  remn+1	
 	lda  #16	
-	sta  under	{_} = loop counter
-div1	asl  0,x	var[x] is gradually replaced
-	rol  1,x	  with the quotient
-	rol  remn	{%} is gradually replaced
-	rol  remn+1	  with the remainder
+	sta  under	;{_} = loop counter
+div1:	asl  0,x	;var[x] is gradually replaced
+	rol  1,x	  ;with the quotient
+	rol  remn	;{%} is gradually replaced
+	rol  remn+1	  ;with the remainder
 	lda  remn	
 	cmp  2,x	
-	lda  remn+1	partial remainder >= var[x+2]?
+	lda  remn+1	;partial remainder >= var[x+2]?
 	sbc  3,x	
 	bcc  div2	
-	sta  remn+1	  yes: update the partial
-	lda  remn	    remainder and set the
-	sbc  2,x	    low bit in the partial
-	sta  remn	    quotient
+	sta  remn+1	  ;yes: update the partial
+	lda  remn	    ;remainder and set the
+	sbc  2,x	    ;low bit in the partial
+	sta  remn	    ;quotient
 	inc  0,x	
-div2	dec  under	
-	bne  div1	loop 16 times
+div2:	dec  under	
+	bne  div1	;loop 16 times
 	rts  		
 ;------------------------------------------------------
 ; Apply comparison operator in a to var[x] and var[x+2]
 ;   and place result in var[x] (1: true, 0: false)
 ; Warning:  Tightly packed spaghetti below!
 ;			
-oper5	sec  		{_} = -2: less than,
-	sbc  #'>'	      -1: equal,
-	sta  under	   other: greater than or equal
-	jsr  sub	var[x] -= var[x+2]
-	inc  under	equality test?
+oper5:	sec  		;{_} = -2: less than,
+	sbc  #'>'	      ;-1: equal,
+	sta  under	   ;other: greater than or equal
+	jsr  sub	;var[x] -= var[x+2]
+	inc  under	;equality test?
 	bne  oper5b	
-	ora  0,x	  yes: 'or' high and low bytes
-	beq  oper5c	    (cs) if 0
-oper5a	clc  		    (cc) if not 0
-oper5b	lda  #0		
-	inc  under	less than test?
-	bne  oper5c	  no: default to >=
-	bcs  oper5a	  yes: complement carry
+	ora  0,x	  ;yes: 'or' high and low bytes
+	beq  oper5c	    ;(cs) if 0
+oper5a:	clc  		    ;(cc) if not 0
+oper5b:	lda  #0		
+	inc  under	;less than test?
+	bne  oper5c	  ;no: default to >=
+	bcs  oper5a	  ;yes: complement carry
 	sec  		
-oper5c	rol  		
-oper5d	sta  0,x	    var[x] -> simple variable
+oper5c:	rol  		
+oper5d:	sta  0,x	    ;var[x] -> simple variable
 	lda  #0		
 	sta  1,x	
-	rts  		var[x] = 1 (true), 0 (false)
+	rts  		;var[x] = 1 (true), 0 (false)
 ;------------------------------------------------------
 ; Set var[x] to the address of the variable named in a
 ; entry:  a holds variable name, @[y] -> text holding
@@ -678,15 +710,15 @@ oper5d	sta  0,x	    var[x] -> simple variable
 ;	  (ne): var[x] -> array element, @[y] ->
 ;	    following text
 ;			
-convp	cmp  #':'	array element?
+convp:	cmp  #':'	;array element?
 	beq  varray	
-	asl  		  no: var[x] -> simple variable
+	asl  		  ;no: var[x] -> simple variable
 	ora  #$80	
 	bmi  oper5d	
-varray	jsr  eval	  yes: evaluate array index at
-	asl  0,x	    @[y] and advance y
+varray:	jsr  eval	  ;yes: evaluate array index at
+	asl  0,x	    ;@[y] and advance y
 	rol  1,x	
-	lda  ampr	    var[x] -> array element
+	lda  ampr	    ;var[x] -> array element
 	sta  2,x	
 	lda  ampr+1	
 	sta  3,x	
@@ -700,26 +732,26 @@ varray	jsr  eval	  yes: evaluate array index at
 ;	  (eq): var[x] = 0, @[y] unchanged
 ;	  (cs): in all but the truly strangest cases
 ;			
-cvbin	sty  ques	save entry text position
+cvbin:	sty  ques	;save entry text position
 	lda  #0		
-	sta  0,x	var[x] = 0
+	sta  0,x	;var[x] = 0
 	sta  1,x	
 	sta  3,x	
-cvbin2	lda  (at),y	if char at @[y] is not a
-	cmp  #'9'+1	  decimal digit then stop
-	bcs  cvbin3	  the conversion
+cvbin2:	lda  (at),y	;if char at @[y] is not a
+	cmp  #'9'+1	  ;decimal digit then stop
+	bcs  cvbin3	  ;the conversion
 	sbc  #'0'-1	
 	bcc  cvbin3	
-	pha  		save decimal digit
+	pha  		;save decimal digit
 	lda  #10	
 	sta  2,x	
-	jsr  mul	var[x] *= 10
-	pla  		retrieve decimal digit
+	jsr  mul	;var[x] *= 10
+	pla  		;retrieve decimal digit
 	sta  2,x	
-	jsr  add	var[x] += digit
-	iny  		loop for more digits
-	bpl  cvbin2	  (with safety escape)
-cvbin3	cpy  ques	(ne) if y changed, (eq) if not
+	jsr  add	;var[x] += digit
+	iny  		;loop for more digits
+	bpl  cvbin2	  ;(with safety escape)
+cvbin3:	cpy  ques	;(ne) if y changed, (eq) if not
 	rts  		
 ;------------------------------------------------------
 ; Accept input line from user and store it in linbuf,
@@ -728,27 +760,36 @@ cvbin3	cpy  ques	(ne) if y changed, (eq) if not
 ; uses:   linbuf, inch, outcr, {@}
 ; exit:   @[y] -> linbuf
 ;			
-inln6	cmp  #'@'	@ (cancel)?
-	beq  newln	  yes: discard entire line
-	iny  		line limit exceeded?
-	bpl  inln2	  no: keep going
-newln	jsr  outcr	  yes: discard entire line
-inln	ldy  #linbuf	entry point: start a fresh line
-	sty  at		{@} -> input line buffer
-	ldy  /linbuf	
+inln6:	cmp  #'@'	;@ (cancel)?
+	beq  newln	  ;yes: discard entire line
+	iny  		;line limit exceeded?
+	bpl  inln2	  ;no: keep going
+newln:	jsr  outcr	  ;yes: discard entire line
+inln:	ldy  #<linbuf	;entry point: start a fresh line
+	sty  at		;{@} -> input line buffer
+	ldy  #>linbuf	
 	sty  at+1	
 	ldy  #1		
-inln5	dey  		
+inln5:	dey  		
 	bmi  newln	
-inln2	jsr  inch	get (and echo) one key press
-	cmp  #'_'	_ (backspace)?
-	beq  inln5	  yes: delete previous char
-	cmp  #$0d	cr?
+inln2:	jsr  inch	;get (and echo) one key press
+	cmp  #'_'	;_ (backspace)?
+	beq  inln5	  ;yes: delete previous char
+	
+	cmp  #$0d	;cr?
 	bne  inln3	
-	lda  #0		  yes: replace with null
-inln3	sta  (at),y	put key in linbuf
-	bne  inln6	continue if not null
-	tay  		y = 0
+	lda  #0		  ;yes: replace with null
+	beq  inlnch	;always takes the branch
+
+inln3:
+	cmp  #$0a	;lf?
+	bne  inlnch
+	lda  #0		;yes: replace with null
+
+inlnch:
+	sta  (at),y	;put key in linbuf
+	bne  inln6	;continue if not null
+	tay  		;y = 0
 	rts  		
 ;------------------------------------------------------
 ; Find the first/next stored program line >= {#}
@@ -759,32 +800,32 @@ inln3	sta  (at),y	put key in linbuf
 ;	  (cc): {@} -> found line, {(} = actual line
 ;	    number, y = 2
 ;			
-find	bcs  findnxt	cs: search begins at next line
-	lda  /prgm	cc: search begins at first line
+find:	bcs  findnxt	;cs: search begins at next line
+	lda  #>prgm	;cc: search begins at first line
 	sta  at+1	
-	lda  #prgm	  {@} -> first program line
-	bcc  find1st	  (always taken)
-findnxt	jsr  checkat	if {@} >= {&} then the search
-	bcs  findrts	  failed; return with (cs)
+	lda  #<prgm	  ;{@} -> first program line
+	bcc  find1st	  ;(always taken)
+findnxt:	jsr  checkat	;if {@} >= {&} then the search
+	bcs  findrts	  ;failed; return with (cs)
 	lda  at		
-	adc  (at),y	{@} += length of current line
-find1st	sta  at	  	
+	adc  (at),y	;{@} += length of current line
+find1st:	sta  at	  	
 	bcc  getlpar	
 	inc  at+1	
-getlpar	ldy  #0		
+getlpar:	ldy  #0		
 	lda  (at),y	
-	sta  lparen	{(} = current line number
-	cmp  pound	  (invalid if {@} >= {&}, but
-	iny  		  we'll catch that later...)
+	sta  lparen	;{(} = current line number
+	cmp  pound	  ;(invalid if {@} >= {&}, but
+	iny  		  ;we'll catch that later...)
 	lda  (at),y	
-	sta  lparen+1	if {(} < {#} then try the next
-	sbc  pound+1	  program line
-	bcc  findnxt	else the search is complete
-checkat	ldy  #2		
-	lda  at		{@} >= {&} (end of program)?
+	sta  lparen+1	;if {(} < {#} then try the next
+	sbc  pound+1	  ;program line
+	bcc  findnxt	;else the search is complete
+checkat:	ldy  #2		
+	lda  at		;{@} >= {&} (end of program)?
 	cmp  ampr	
-	lda  at+1	  yes: search failed (cs)
-	sbc  ampr+1	  no: clear carry
-findrts	rts  		
+	lda  at+1	  ;yes: search failed (cs)
+	sbc  ampr+1	  ;no: clear carry
+findrts:	rts  		
 ;------------------------------------------------------
-	.en  		
+	;.en  		

@@ -38,6 +38,15 @@
 .setcpu "6502"
 .macpack longbranch
 
+.import MONCOUT
+.import MONRDKEY
+.import MONISCNTC
+.import LOAD
+.import SAVE
+
+.export RESTART
+.export COLD_START
+
 ; zero page
 ZP_START1 = $00
 ZP_START2 = $0D
@@ -578,7 +587,7 @@ L2300:
         dex
         bpl     L2300
         jsr     GARBAG
-        ldx     #TEMP1-FAC+1
+        ldx     #<(TEMP1-FAC+1)
 L230B:
         pla
         sta     FAC,x
@@ -4458,7 +4467,7 @@ FDIVT:
         jsr     ADD_EXPONENTS
         inc     FAC
         beq     JOV
-        ldx     #-MANTISSA_BYTES
+        ldx     #<-MANTISSA_BYTES
         lda     #$01
 L39A1:
         ldy     ARG+1
@@ -5009,7 +5018,7 @@ L3C8C:
         lda     #<CON_BILLION
         ldy     #>CON_BILLION
         jsr     FMULT
-        lda     #-6 ; exponent adjustment
+        lda     #<-6 ; exponent adjustment
 L3C95:
         sta     INDX
 ; ----------------------------------------------------------------------------
@@ -5765,95 +5774,3 @@ QT_BYTES_FREE:
         .byte   CR,LF
         .byte   "COPYRIGHT 1977 BY MICROSOFT CO."
         .byte   CR,LF,0
-
-; STARTUP AND SERIAL I/O ROUTINES ===========================================================
-; BY G. SEARLE 2013 =========================================================================
-ACIA := $A000
-ACIAControl := ACIA+0
-ACIAStatus := ACIA+0
-ACIAData := ACIA+1
-
-.segment "IOHANDLER"
-.org $FF00
-Reset:
-	LDX     #STACK_TOP
-	TXS
-
-	LDA 	#$95		; Set ACIA baud rate, word size and Rx interrupt (to control RTS)
-	STA	ACIAControl
-
-; Display startup message
-	LDY #0
-ShowStartMsg:
-	LDA	StartupMessage,Y
-	BEQ	WaitForKeypress
-	JSR	MONCOUT
-	INY
-	BNE	ShowStartMsg
-
-; Wait for a cold/warm start selection
-WaitForKeypress:
-	JSR	MONRDKEY
-	BCC	WaitForKeypress
-	
-	AND	#$DF			; Make upper case
-	CMP	#'W'			; compare with [W]arm start
-	BEQ	WarmStart
-
-	CMP	#'C'			; compare with [C]old start
-	BNE	Reset
-
-	JMP	COLD_START	; BASIC cold start
-
-WarmStart:
-	JMP	RESTART		; BASIC warm start
-
-MONCOUT:
-	PHA
-SerialOutWait:
-	LDA	ACIAStatus
-	AND	#2
-	CMP	#2
-	BNE	SerialOutWait
-	PLA
-	STA	ACIAData
-	RTS
-
-MONRDKEY:
-	LDA	ACIAStatus
-	AND	#1
-	CMP	#1
-	BNE	NoDataIn
-	LDA	ACIAData
-	SEC		; Carry set if key available
-	RTS
-NoDataIn:
-	CLC		; Carry clear if no key pressed
-	RTS
-
-MONISCNTC:
-	JSR	MONRDKEY
-	BCC	NotCTRLC ; If no key pressed then exit
-	CMP	#3
-	BNE	NotCTRLC ; if CTRL-C not pressed then exit
-	SEC		; Carry set if control C pressed
-	RTS
-NotCTRLC:
-	CLC		; Carry clear if control C not pressed
-	RTS
-
-StartupMessage:
-	.byte	$0C,"Cold [C] or warm [W] start?",$0D,$0A,$00
-
-LOAD:
-	RTS
-	
-SAVE:
-	RTS
-	
-.segment "VECTS"
-.org $FFFA
-	.word	Reset		; NMI 
-	.word	Reset		; RESET 
-	.word	Reset		; IRQ 
-
